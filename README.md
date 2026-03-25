@@ -2,7 +2,7 @@
 
 A local-first, AI-powered knowledge base CLI. Capture notes, documents, and code repositories — then search and ask questions using Claude as the reasoning engine.
 
-All data stays on your machine. AI features use the Anthropic API directly — set `ANTHROPIC_API_KEY` to get started.
+All data stays on your machine. AI features run through the Claude CLI — if you have Claude Desktop or Claude Code installed, you're already set up.
 
 ---
 
