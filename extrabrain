@@ -1,0 +1,350 @@
+#!/usr/bin/env bash
+# extrabrain — personal brain CLI
+# Usage: extrabrain <command> [args]
+
+# Code dir: where this script lives — resolve symlink for global npm installs
+_SELF="${BASH_SOURCE[0]}"
+while [ -L "$_SELF" ]; do
+  _LINK="$(readlink "$_SELF")"
+  [[ "$_LINK" = /* ]] && _SELF="$_LINK" || _SELF="$(dirname "$_SELF")/$_LINK"
+done
+BRAIN_DIR="${EXTRABRAIN_CODE:-$(cd "$(dirname "$_SELF")" && pwd)}"
+# Data dir: where notes/docs/vectors live (default: ~/.extrabrain)
+export EXTRABRAIN_DIR="${EXTRABRAIN_DIR:-$HOME/.extrabrain}"
+S="$BRAIN_DIR/scripts"
+N() { node "$S/$1.js" "${@:2}"; }  # N <script> [args]
+
+# ── Colours ────────────────────────────────────────────────────────────────────
+B=$'\e[1m'        # bold
+D=$'\e[2m'        # dim
+R=$'\e[0m'        # reset
+CY=$'\e[36m'      # cyan   — section headers
+GR=$'\e[32m'      # green  — subcategory hints
+YL=$'\e[33m'      # yellow — flags
+GY=$'\e[90m'      # gray   — descriptions
+
+# h <title>        — section header
+# c <cmd> <desc>   — command + description
+# f <flags> <desc> — flag line
+# g <cat> <desc>   — hint line (green cat)
+h() { printf "\n  ${B}${CY}%-10s${R}\n" "$1"; }
+c() { printf "    ${B}%-26s${R}  ${GY}%s${R}\n" "$1" "$2"; }
+f() { printf "    ${YL}%-26s${R}  ${GY}%s${R}\n" "$1" "$2"; }
+g() { printf "    ${GR}%-22s${R}  ${GY}%s${R}\n" "$1" "$2"; }
+
+# ── Primary commands ───────────────────────────────────────────────────────────
+
+case "$1" in
+  init)
+    N init "$@"
+    ;;
+  note)
+    shift
+    N note "$@" && N embed
+    ;;
+  meeting)
+    shift
+    N meeting "$@"
+    ;;
+  ask)
+    shift
+    if [[ $# -eq 0 ]]; then
+      printf "\n  ${CY}❓  ASK${R}\n"
+      c 'ask "question"'         "Ask the brain (Claude answers)"
+      f 'ask "q" --sources'      "Show sources used"
+      f 'ask "q" --repo <name>'  "Search within a specific repo"
+      echo ""
+      exit 0
+    fi
+    N ask "$@"
+    ;;
+  pull)
+    shift
+    N pull "$@"
+    ;;
+  actions)
+    shift
+    N actions "$@"
+    ;;
+  digest)
+    shift
+    N digest "$@"
+    ;;
+  brief)
+    shift
+    N brief "$@"
+    ;;
+  draft)
+    shift
+    if [[ $# -eq 0 ]]; then
+      printf "\n  ${CY}✍️   DRAFT${R}\n"
+      c 'draft "write X"'            "Draft a doc using brain as context"
+      f 'draft "..." --save'         "Save to brain"
+      f 'draft "..." --open'         "Open in VS Code after saving"
+      f 'draft "..." --format email' "Format as email"
+      echo ""
+      exit 0
+    fi
+    N draft "$@"
+    ;;
+  recent)
+    shift
+    N recent "$@"
+    ;;
+  feedback)
+    shift
+    N feedback "$@"
+    ;;
+  status)
+    N status
+    ;;
+
+# ── Capture commands ───────────────────────────────────────────────────────────
+
+  clip)
+    shift
+    N clip "$@" && N embed
+    ;;
+  save)
+    shift
+    N save-url "$@" && N embed
+    ;;
+  add)
+    shift
+    if [[ $# -eq 0 ]]; then
+      printf "\n  ${CY}📥  ADD FILES${R}\n"
+      c 'add <file> [file2 ...]' "Add files to inbox"
+      f ''                       "Tip: drag files from Finder to paste paths"
+      echo ""
+      exit 0
+    fi
+    WS=$(cat "$EXTRABRAIN_DIR/.workspace" 2>/dev/null || echo "default")
+    INBOX="$EXTRABRAIN_DIR/workspaces/$WS/sources/inbox"
+    added=0
+    for file in "$@"; do
+      file="${file%\'}"
+      file="${file#\'}"
+      if [[ ! -f "$file" ]]; then
+        echo "  ⚠️  Not a file, skipping: $file"
+        continue
+      fi
+      cp "$file" "$INBOX/"
+      echo "  ✅ Added: $(basename "$file")"
+      ((added++))
+    done
+    if [[ $added -gt 0 ]]; then
+      echo ""
+      echo "  $added file(s) added to inbox. Run 'extrabrain convert' to convert them."
+    fi
+    ;;
+  convert)
+    N convert-inbox && N embed
+    ;;
+  scrape)
+    shift
+    if [[ $# -eq 0 ]]; then
+      printf "\n  ${CY}🌐  SCRAPE${R}\n"
+      c 'scrape "https://..."'        "Crawl entire website and save"
+      f 'scrape "..." --max 200'      "Limit pages crawled"
+      f 'scrape "..." --delay 500'    "Delay between requests (ms)"
+      echo ""
+      exit 0
+    fi
+    N scrape "$@"
+    ;;
+  capture)
+    printf "\n  ${CY}📥  CAPTURE${R}\n"
+    c 'clip'                    "Save clipboard as a note"
+    f 'clip "title"'            "Save clipboard with a title"
+    c 'save "https://..."'      "Fetch a webpage and save as markdown"
+    c 'add <files>'             "Add files to inbox (drag from Finder)"
+    c 'convert'                 "Convert all inbox files to markdown"
+    c 'scrape "https://..."'    "Crawl entire website and save"
+    f 'scrape "..." --max 200'  "Limit pages  [--delay 500]"
+    echo ""
+    ;;
+
+# ── Search commands ────────────────────────────────────────────────────────────
+
+  search)
+    shift
+    if [[ $# -eq 0 ]]; then
+      printf "\n  ${CY}🔍  SEARCH${R}\n"
+      c 'search "query"'          "Keyword search across all content"
+      echo ""
+      exit 0
+    fi
+    N search "$@"
+    ;;
+
+# ── Workspace commands ─────────────────────────────────────────────────────────
+
+  workspace)
+    shift
+    if [[ $# -eq 0 ]]; then
+      printf "\n  ${CY}📁  WORKSPACE${R}\n"
+      c 'workspace list'          "List all workspaces"
+      c 'workspace create <name>' "Create a new workspace"
+      c 'workspace use <name>'    "Switch active workspace"
+      c 'workspace current'       "Show active workspace"
+      echo ""
+      exit 0
+    fi
+    N workspace "$@"
+    ;;
+
+# ── Maintain commands ──────────────────────────────────────────────────────────
+
+  sync)
+    N index "$@" && N embed
+    ;;
+  extract)
+    N index "$@"
+    ;;
+  embed)
+    N embed
+    ;;
+  dedup)
+    shift
+    N dedup "$@"
+    ;;
+  retag)
+    shift
+    N retag "$@"
+    ;;
+  maintain)
+    printf "\n  ${CY}🔧  MAINTAIN${R}\n"
+    c 'sync'                       "Re-index repos + rebuild vectors"
+    c 'extract'                    "Re-index repos only"
+    c 'embed'                      "Rebuild vector search only"
+    c 'retag'                      "Tag all untagged notes + docs"
+    f 'retag --dry-run'            "Preview only  [--notes] [--docs]"
+    c 'dedup'                      "Remove duplicate chunks"
+    f 'dedup --dry-run'            "Preview duplicates"
+    echo ""
+    ;;
+
+# ── System commands ────────────────────────────────────────────────────────────
+
+  open)
+    code "$BRAIN_DIR"
+    ;;
+  watch)
+    shift
+    PID_FILE="$EXTRABRAIN_DIR/.watch.pid"
+    EMBEDDER_PID="$EXTRABRAIN_DIR/.embedder.pid"
+    if [[ "$1" == "stop" ]]; then
+      if [[ -f "$PID_FILE" ]]; then
+        kill "$(cat "$PID_FILE")" 2>/dev/null && echo "  🛑 Watch stopped" || echo "  ⚠️  Process already gone"
+        rm -f "$PID_FILE"
+      else
+        echo "  ℹ️  Watch is not running"
+      fi
+      if [[ -f "$EMBEDDER_PID" ]]; then
+        kill "$(cat "$EMBEDDER_PID")" 2>/dev/null
+        rm -f "$EMBEDDER_PID"
+        echo "  🛑 Embedder stopped"
+      fi
+    elif [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+      echo "  ℹ️  Watch already running (PID $(cat "$PID_FILE"))"
+      echo "  Run 'extrabrain watch stop' to stop it"
+    else
+      node "$S/watch.js" &
+      echo "  ✅ Watch started in background (PID $!)"
+      if [[ ! -f "$EMBEDDER_PID" ]] || ! kill -0 "$(cat "$EMBEDDER_PID")" 2>/dev/null; then
+        EMBEDDER_LOG="$EXTRABRAIN_DIR/.embedder.log"
+        rm -f "$EMBEDDER_LOG"
+        node "$S/embedder-server.js" &>"$EMBEDDER_LOG" &
+        EPID=$!
+        echo "  ⏳ Embedder warming up... (PID $EPID)"
+        for i in {1..20}; do
+          sleep 0.5
+          if grep -q "Embedder ready" "$EMBEDDER_LOG" 2>/dev/null; then
+            echo "  ⚡ Embedder ready — ask/search is now instant"
+            break
+          fi
+        done
+      fi
+      echo "  Run 'extrabrain watch stop' to stop both"
+    fi
+    ;;
+  embedder)
+    shift
+    EMBEDDER_PID="$EXTRABRAIN_DIR/.embedder.pid"
+    if [[ "$1" == "stop" ]]; then
+      if [[ -f "$EMBEDDER_PID" ]]; then
+        kill "$(cat "$EMBEDDER_PID")" 2>/dev/null && echo "  🛑 Embedder stopped" || echo "  ⚠️  Process already gone"
+        rm -f "$EMBEDDER_PID"
+      else
+        echo "  ℹ️  Embedder is not running"
+      fi
+    elif [[ -f "$EMBEDDER_PID" ]] && kill -0 "$(cat "$EMBEDDER_PID")" 2>/dev/null; then
+      echo "  ℹ️  Embedder already running (PID $(cat "$EMBEDDER_PID"))"
+      echo "  Run 'extrabrain embedder stop' to stop it"
+    else
+      EMBEDDER_LOG="$EXTRABRAIN_DIR/.embedder.log"
+      rm -f "$EMBEDDER_LOG"
+      node "$S/embedder-server.js" &>"$EMBEDDER_LOG" &
+      EPID=$!
+      echo "  ⏳ Embedder warming up... (PID $EPID)"
+      for i in {1..20}; do
+        sleep 0.5
+        if grep -q "Embedder ready" "$EMBEDDER_LOG" 2>/dev/null; then
+          echo "  ⚡ Embedder ready — ask/search is now instant"
+          break
+        fi
+      done
+      echo "  Run 'extrabrain embedder stop' to stop it"
+    fi
+    ;;
+  system)
+    printf "\n  ${CY}⚙️   SYSTEM${R}\n"
+    c 'watch'                   "Auto-embed on file changes"
+    f 'watch stop'              "Stop watcher"
+    c 'embedder'                "Start embedder daemon"
+    f 'embedder stop'           "Stop embedder daemon"
+    c 'open'                    "Open brain in VS Code"
+    echo ""
+    ;;
+
+# ── Default help ───────────────────────────────────────────────────────────────
+
+  *)
+    printf "\n  ${B}extrabrain${R}  ${GY}your AI-powered knowledge base${R}\n"
+    h "CAPTURE"
+    c 'note "thought"'          "Save a quick note"
+    c 'clip'                    "Save clipboard content"
+    c 'save <url>'              "Fetch a webpage and save as markdown"
+    c 'add <files>'             "Add files to inbox"
+    c 'convert'                 "Convert inbox files to markdown"
+    c 'scrape <url>'            "Crawl an entire website and save"
+    c 'meeting "title"'         "Create a structured meeting note"
+    h "SEARCH"
+    c 'search "query"'          "Keyword + semantic search"
+    c 'ask "question"'          "Ask Claude using your content as context"
+    f '--sources'               "Show which sources were used"
+    f '--repo <name>'           "Limit search to a specific repo"
+    h "RECALL"
+    c 'brief "topic"'           "Pre-meeting intelligence briefing"
+    c 'draft "write X"'         "Draft a document using your brain"
+    f '--format email|report'   "Set output format  [--save] [--open]"
+    c 'actions'                 "Extract todos from recent notes"
+    f '--days N'                "Look back N days  [--all]"
+    c 'digest'                  "Weekly summary of everything captured"
+    c 'pull'                    "Sync from Slack, Jira, or custom sources"
+    f '--list'                  "Show configured connectors"
+    h "WORKSPACE"
+    c 'workspace list'          "List all workspaces"
+    c 'workspace create <name>' "Create a new workspace"
+    c 'workspace use <name>'    "Switch active workspace"
+    h "STATUS"
+    c 'recent'                  "Recently added content"
+    c 'status'                  "Overview of brain contents"
+    printf "\n  ${GY}run 'extrabrain maintain' or 'extrabrain system' for more${R}\n"
+    printf "\n  ${GY}examples:${R}\n"
+    printf "    ${GY}extrabrain note \"decided to use postgres\"${R}\n"
+    printf "    ${GY}extrabrain ask \"what database are we using and why?\"${R}\n"
+    printf "    ${GY}extrabrain brief \"api design meeting\"${R}\n"
+    echo ""
+    ;;
+esac

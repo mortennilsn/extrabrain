@@ -1,0 +1,45 @@
+{
+  "name": "extrabrain",
+  "version": "0.1.0",
+  "description": "Local-first AI-powered knowledge base — capture notes, docs, and code, then search and ask questions with Claude",
+  "type": "module",
+  "bin": {
+    "extrabrain": "./extrabrain"
+  },
+  "scripts": {
+    "init": "node scripts/init.js",
+    "extract": "node scripts/index.js",
+    "convert": "node scripts/convert-inbox.js",
+    "note": "node scripts/note.js",
+    "meeting": "node scripts/meeting.js",
+    "brief": "node scripts/brief.js",
+    "clip": "node scripts/clip.js",
+    "save": "node scripts/save-url.js",
+    "embed": "node scripts/embed.js",
+    "sync": "node scripts/index.js && node scripts/embed.js",
+    "status": "node scripts/status.js",
+    "search": "node scripts/search.js",
+    "recent": "node scripts/recent.js",
+    "ask": "node scripts/ask.js",
+    "workspace": "node scripts/workspace.js",
+    "scrape": "node scripts/scrape.js",
+    "watch": "node scripts/watch.js",
+    "dedup": "node scripts/dedup.js",
+    "digest": "node scripts/digest.js",
+    "actions": "node scripts/actions.js",
+    "draft": "node scripts/draft.js",
+    "retag": "node scripts/retag.js",
+    "pull": "node scripts/pull.js",
+    "feedback": "node scripts/feedback.js",
+    "server": "node server/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@xenova/transformers": "^2.17.2",
+    "csv-parse": "^6.2.0",
+    "exceljs": "^4.4.0",
+    "mailparser": "^3.9.5",
+    "node-html-markdown": "^2.0.0",
+    "pdfjs-dist": "^5.4.624"
+  }
+}
