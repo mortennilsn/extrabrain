@@ -34,21 +34,18 @@ Sources (notes, docs, repos, URLs)
 ## Installation
 
 ```bash
-npm install -g extrabrain
+git clone https://github.com/mortennilsen/extrabrain
+cd extrabrain
+npm install
+alias extrabrain="$(pwd)/extrabrain"
 extrabrain init
 ```
 
-That's it. `init` will walk you through setting your API key, adding repo paths, and running your first sync.
+`init` will walk you through adding repo paths and running your first sync.
 
 Data is stored at `~/.extrabrain` (override with `$EXTRABRAIN_DIR`).
 
-> **Want to run from source?**
-> ```bash
-> git clone https://github.com/your-org/extrabrain
-> cd extrabrain && npm install
-> alias extrabrain="$(pwd)/extrabrain"
-> extrabrain init
-> ```
+> **npm package coming soon** — `npm install -g extrabrain` will work once published.
 
 ---
 
